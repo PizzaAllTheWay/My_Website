@@ -282,3 +282,84 @@ def reset_token(token):
         return redirect(url_for("user.login"))
 
     return render_template("user/reset_form.html")
+
+
+
+@bp.get("/delete")
+def delete_confirm():
+    """
+    Show a confirmation page to delete the currently logged-in account.
+    Requires login. We ask for exact username + current password.
+    """
+    uid = session.get("user_id")
+    if not uid:
+        flash("Please log in first.", "warn")
+        return redirect(url_for("user.login"))
+
+    user = db.session.get(User, uid)
+    if not user:
+        session.clear()
+        flash("Session expired. Please log in again.", "warn")
+        return redirect(url_for("user.login"))
+
+    return render_template("user/delete.html", username=user.username)
+
+
+
+@bp.post("/delete")
+def delete_account():
+    """
+    Handle POST from the delete confirmation page.
+
+    Validates:
+      - user still logged in
+      - typed username matches current account's username
+      - password is correct
+
+    On success:
+      - delete the user
+      - clear the session
+      - redirect safely away from /user/delete
+    """
+    uid = session.get("user_id")
+    if not uid:
+        flash("Please log in first.", "warn")
+        return redirect(url_for("user.login"))
+
+    user = db.session.get(User, uid)
+    if not user:
+        session.clear()
+        flash("Session expired. Please log in again.", "warn")
+        return redirect(url_for("user.login"))
+
+    typed_username = (request.form.get("confirm") or "").strip()
+    password       = request.form.get("password") or ""
+
+    # Username must match exactly
+    if typed_username != user.username:
+        return render_template(
+            "user/delete.html",
+            username=user.username,
+            error="Confirmation text did not match your username."
+        )
+
+    # Password must be valid
+    if not user.check_password(password):
+        return render_template(
+            "user/delete.html",
+            username=user.username,
+            error="Incorrect password."
+        )
+
+    # Delete + logout
+    db.session.delete(user)
+    db.session.commit()
+    session.clear()
+    flash("Your account has been deleted.", "ok")
+
+    # Redirect away from /user/delete to avoid refresh posting again
+    # (Use your actual home endpoint if you have it; fallback to "/")
+    try:
+        return redirect(url_for("user.index"))
+    except Exception:
+        return redirect("/")

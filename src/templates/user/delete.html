@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Delete Account</title>
+</head>
+<body>
+  {% include 'partials/_navigation_bar.html' %}
+  <h1>Delete Account</h1>
+
+  {% if error %}
+    <p style="color:#b00020;"><b>Error:</b> {{ error }}</p>
+  {% endif %}
+
+  <p><b>Warning:</b> This will permanently delete your account and all associated data.
+     This action cannot be undone.</p>
+
+  <p>To confirm, please type your username: <b>{{ username }}</b> and your password.</p>
+
+  <form method="post" action="{{ url_for('user.delete_account') }}">
+    <div style="margin-bottom:8px;">
+      <label>
+        Confirmation (type your username)
+        <input name="confirm" required placeholder="Type your username exactly" autofocus>
+      </label>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label>
+        Password
+        <input type="password" name="password" required placeholder="Your current password">
+      </label>
+    </div>
+
+    <button type="submit" style="color:#b00020;">Yes, delete my account</button>
+    <a href="{{ url_for('user.index') }}" style="margin-left:8px; text-decoration:none;">Cancel</a>
+  </form>
+</body>
+</html>
