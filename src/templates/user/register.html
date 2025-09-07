@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Register</title></head>
+<body>
+  {% include 'partials/_navigation_bar.html' %}
+  <h1>Register</h1>
+
+  {% if error %}
+    <p style="color:red; font-weight:600;">{{ error }}</p>
+  {% endif %}
+
+  <form method="post" novalidate>
+    <label>Username
+      <input name="username" value="{{ (form.username if form else '') }}" required>
+    </label><br>
+    <label>Email
+      <input type="email" name="email" value="{{ (form.email if form else '') }}" required>
+    </label><br>
+    <label>Password
+      <input type="password" name="password" required>
+    </label><br>
+    <button type="submit">Create</button>
+  </form>
+</body>
+</html>

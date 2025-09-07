@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Login</title></head>
+<body>
+  {% include 'partials/_navigation_bar.html' %}
+  <h1>Login</h1>
+
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% if msgs %}
+      <ul>
+        {% for cat, m in msgs %}<li>[{{cat}}] {{ m }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  {% if error %}
+    <p style="color:red; font-weight:600;">{{ error }}</p>
+  {% endif %}
+
+  <form method="post" novalidate>
+    <label>Username
+      <input name="username" value="{{ (form.username if form else '') }}" required>
+    </label><br>
+    <label>Password
+      <input type="password" name="password" required>
+    </label><br>
+    <button type="submit">Login</button>
+  </form>
+</body>
+</html>

@@ -1,5 +1,16 @@
-<nav style="padding:8px 12px; border-bottom:1px solid #ddd;">
+<nav style="padding:8px 12px; border-bottom:1px solid #ddd; display:flex; gap:12px;">
   <a href="{{ url_for('home.index') }}">Home</a>
   <a href="{{ url_for('about.index') }}">About</a>
   <a href="{{ url_for('user.index') }}">User</a>
+
+  <!-- Right side spacer -->
+  <span style="margin-left:auto"></span>
+
+  {% if session.get('username') %}
+    <span>Hi, {{ session['username'] }}</span>
+    <a href="{{ url_for('user.logout') }}">Logout</a>
+  {% else %}
+    <a href="{{ url_for('user.login') }}">Login</a>
+    <a href="{{ url_for('user.register') }}">Register</a>
+  {% endif %}
 </nav>

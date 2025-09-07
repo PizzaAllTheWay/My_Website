@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Martynas Website :)</title>
+</head>
+<body>
+  {% include 'partials/_navigation_bar.html' %}
+  <h1>User</h1>
+
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% if msgs %}
+      <ul>
+        {% for cat, m in msgs %}<li>[{{cat}}] {{ m }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  {% if username %}
+    <p>Signed in as <b>{{ username }}</b></p>
+    <p><a href="{{ url_for('user.logout') }}">Logout</a></p>
+  {% else %}
+    <p><a href="{{ url_for('user.register') }}">Create account</a> |
+       <a href="{{ url_for('user.login') }}">Login</a></p>
+  {% endif %}
+</body>
+</html>
+
