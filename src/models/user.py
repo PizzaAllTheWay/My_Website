@@ -1,6 +1,15 @@
-from app import db                      # SQLAlchemy instance created in app factory
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+
+# IMPORTANT:
+# Use a neutral module for shared extensions to avoid circular imports.
+# Models import `db` from extensions; app.py imports the same and calls init_app().
+# This prevents: app.py -> models -> app.py loops.
+try:
+    from extensions import db
+except ModuleNotFoundError:
+    from src.extensions import db
+
 
 
 class User(db.Model):
@@ -53,6 +62,13 @@ class User(db.Model):
         nullable=False
     )
 
+    # --- Game/points ---
+    bongo_cat_score = db.Column(
+        db.Integer,
+        nullable=False,
+        default=0
+    )
+
     # --- Helpers (optional but convenient) ---
     def set_password(self, password: str) -> None:
         """
@@ -65,6 +81,18 @@ class User(db.Model):
     def check_password(self, password: str) -> bool:
         """Return True if password matches the stored hash."""
         return check_password_hash(self.password_hash, password)
+    
+    def get_bongo_cat_score(self) -> int:
+        """
+        Return the current bongo cat score.
+        """
+        return int(self.bongo_cat_score or 0)
+
+    def add_bongo_cat_score(self, delta: int) -> None:
+        """
+        Increment the bongo cat score by delta (can be negative).
+        """
+        self.bongo_cat_score = self.get_bongo_cat_score() + int(delta)
 
     def __repr__(self) -> str:
         return f"<User id={self.id} username={self.username!r}>"

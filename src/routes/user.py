@@ -7,10 +7,17 @@ from flask import (
 )
 from sqlalchemy.exc import IntegrityError  # handle unique-constraint collisions
 
-# Import the SQLAlchemy db handle from your app factory module.
-# (Use 'from app import db' because your file is app.py, not run.py)
-from app import db
+# Import the User model (ORM table)
 from models.user import User
+
+# IMPORTANT:
+# Use a neutral module for shared extensions to avoid circular imports.
+# Models import `db` from extensions; app.py imports the same and calls init_app().
+# This prevents: app.py -> models -> app.py loops.
+try:
+    from extensions import db
+except ModuleNotFoundError:
+    from src.extensions import db
 
 # All routes in this file will live under /user/*
 bp = Blueprint("user", __name__, url_prefix="/user")
@@ -20,10 +27,35 @@ bp = Blueprint("user", __name__, url_prefix="/user")
 def index():
     """
     User landing page.
-    Shows simple status and links based on whether the user is logged in.
-    We pass 'username' from the session into the template for convenience.
+
+    What it does:
+    - Reads the current login state from the session (username).
+    - If logged in, looks up the User row and fetches bongo_cat_score.
+    - Renders templates/user/user.html with both values so the page
+      can show “Signed in as …” and “Bongo cat score: …”.
+
+    Notes:
+    - If no user is logged in, username=None and bongo_cat_score=None,
+      and the template will show login/register links instead.
     """
-    return render_template("user/user.html", username=session.get("username"))
+    # Pull username from the signed session cookie
+    username = session.get("username")
+
+    # Default when anonymous or user not found
+    bongo_cat_score = None
+
+    # If logged in, load the user and read the score
+    if username:
+        u = User.query.filter_by(username=username).first()
+        if u:
+            bongo_cat_score = u.get_bongo_cat_score()
+
+    # Pass data to the template
+    return render_template(
+        "user/user.html",
+        username=username,
+        bongo_cat_score=bongo_cat_score,
+    )
 
 
 

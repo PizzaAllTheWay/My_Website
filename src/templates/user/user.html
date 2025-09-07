@@ -18,6 +18,11 @@
 
   {% if username %}
     <p>Signed in as <b>{{ username }}</b></p>
+
+    {% if bongo_cat_score is not none %}
+      <p>Bongo cat score: {{ bongo_cat_score }}</p>
+    {% endif %}
+
     <p><a href="{{ url_for('user.logout') }}">Logout</a></p>
   {% else %}
     <p><a href="{{ url_for('user.register') }}">Create account</a> |

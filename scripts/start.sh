@@ -11,6 +11,8 @@ warn() { printf "\033[1;33m[!]\033[0m %s\n" "$*"; }
 die()  { printf "\033[1;31m[x]\033[0m %s\n" "$*\n" >&2; exit 1; }
 trap 'die "run aborted (line $LINENO)"' ERR
 
+
+
 # --- sanity ---
 [[ -f "${ROOT}/src/app.py" ]]               || die "src/app.py missing"
 [[ -f "${SCRIPTS}/duckdns-update.sh" ]]     || die "scripts/duckdns-update.sh missing"
@@ -18,10 +20,13 @@ trap 'die "run aborted (line $LINENO)"' ERR
 [[ -f "${SETUP}/duckdns-update.service" ]]  || die "setupfiles/duckdns-update.service missing"
 [[ -f "${SETUP}/duckdns-update.timer" ]]    || die "setupfiles/duckdns-update.timer missing"
 [[ -f "${SETUP}/Caddyfile" ]]               || die "setupfiles/Caddyfile missing"
+[[ -f "${ROOT}/src/requirements.txt" ]]     || die "src/requirements.txt missing"
 
 APP_ROOT="$ROOT"
 APP_USER="${SUDO_USER:-$USER}"
 APP_GROUP="$APP_USER"
+
+
 
 # --- nuke old units (stop/disable/remove), keep Caddy installed but we will reload it ---
 ok "Stopping & removing previous services"
@@ -32,6 +37,8 @@ sudo rm -f /etc/systemd/system/website.service \
            /etc/systemd/system/duckdns-update.service \
            /etc/systemd/system/duckdns-update.timer || true
 sudo systemctl daemon-reload
+
+
 
 # --- deps ---
 ok "Installing deps (python3-venv pip curl caddy)"
@@ -46,9 +53,16 @@ if [[ ! -x "${ROOT}/.venv/bin/python" ]]; then
   ok "Creating venv ${ROOT}/.venv"
   python3 -m venv "${ROOT}/.venv"
 fi
-ok "Installing Flask + Gunicorn"
-"${ROOT}/.venv/bin/pip" -q install --upgrade pip
-"${ROOT}/.venv/bin/pip" -q install flask gunicorn
+
+PY="${ROOT}/.venv/bin/python"
+PIP="${ROOT}/.venv/bin/pip"
+FLASK="${ROOT}/.venv/bin/flask"
+
+ok "Installing Python dependencies from src/requirements.txt"
+"$PY" -m pip install --upgrade pip wheel setuptools
+"$PIP" install -r "${ROOT}/src/requirements.txt"
+
+
 
 # --- prompt for DuckDNS domain/token EVERY run ---
 read -rp "DuckDNS subdomain (without .duckdns.org): " DUCK_DOMAIN
@@ -62,12 +76,10 @@ while :; do
 done
 
 # --- global env vars anyone can use ---
-#   MYWEBSITE_DOMAIN=subdomain
-#   MYWEBSITE_FQDN=subdomain.duckdns.org
 ok "Setting global environment variables in /etc/environment"
 sudo sed -i '/^MYWEBSITE_DOMAIN=/d' /etc/environment || true
 sudo sed -i '/^MYWEBSITE_FQDN=/d'   /etc/environment || true
-echo "MYWEBSITE_DOMAIN=${DUCK_DOMAIN}"        | sudo tee -a /etc/environment >/dev/null
+echo "MYWEBSITE_DOMAIN=${DUCK_DOMAIN}"            | sudo tee -a /etc/environment >/dev/null
 echo "MYWEBSITE_FQDN=${DUCK_DOMAIN}.duckdns.org" | sudo tee -a /etc/environment >/dev/null
 
 # --- install DuckDNS updater script (inject domain/token) ---
@@ -87,6 +99,8 @@ else
 fi
 sudo chmod 700 "$UPD"
 
+
+
 # --- install systemd units fresh ---
 ok "Installing systemd units → /etc/systemd/system"
 sudo install -m 0644 "${SETUP}/duckdns-update.service" /etc/systemd/system/duckdns-update.service
@@ -101,10 +115,51 @@ sed -e "s|{{APP_ROOT}}|${APP_ROOT}|g" \
 sudo install -m 0644 "${TMP_UNIT}" /etc/systemd/system/website.service
 rm -f "${TMP_UNIT}"
 
+
+
 # --- Caddy config (domain substitution) ---
 ok "Installing Caddyfile → /etc/caddy/Caddyfile"
 sed "s/\${DUCK_DOMAIN}/${DUCK_DOMAIN}/g" "${SETUP}/Caddyfile" | sudo tee /etc/caddy/Caddyfile >/dev/null
 sudo install -d -o caddy -g caddy /var/log/caddy
+
+
+
+# --- Initialize / upgrade the database schema (Flask-Migrate/Alembic) ---
+ok "Initializing / upgrading database schema"
+
+# Enforce single instance dir under src/ (move any stray DB then remove root/instance)
+SRC_INST="${ROOT}/src/instance"
+ROOT_INST="${ROOT}/instance"
+mkdir -p "$SRC_INST"
+if [[ -f "${ROOT_INST}/site.db" ]]; then
+  ok "Moving DB from root/instance -> src/instance"
+  mv "${ROOT_INST}/site.db" "${SRC_INST}/"
+fi
+# remove root-level instance if empty
+rmdir "${ROOT_INST}" 2>/dev/null || true
+
+# Work inside src/ so imports like `from models...` resolve as expected
+pushd "${ROOT}/src" >/dev/null
+
+# Nuke any ambient settings that might force Flask to import 'src.app'
+unset FLASK_APP FLASK_RUN_FROM_CLI PYTHONPATH
+
+# Always target the app factory in app.py explicitly
+APPARG=(--app app:create_app)
+
+# First-time: create Alembic folder + baseline migration from current models
+if [[ ! -d migrations ]]; then
+  ok "Creating migrations/ (Alembic) and baseline revision from current models"
+  "$PY" -m flask "${APPARG[@]}" db init
+  "$PY" -m flask "${APPARG[@]}" db migrate -m "baseline"
+fi
+
+# Apply pending migrations (safe to run every time)
+"$PY" -m flask "${APPARG[@]}" db upgrade
+
+popd >/dev/null
+
+
 
 # --- bring everything up ---
 ok "Reloading systemd & starting services"
@@ -123,6 +178,8 @@ if command -v ufw >/dev/null 2>&1 && sudo ufw status | grep -q "Status: active";
   sudo ufw allow 80/tcp || true
   sudo ufw allow 443/tcp || true
 fi
+
+
 
 # --- status ---
 echo
