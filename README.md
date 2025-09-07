@@ -24,9 +24,11 @@ Services run under **systemd** and certificates auto-renew.
 
 You’ll be prompted for:
 
-* **DuckDNS subdomain** (e.g. `myhomebox`, not the full domain)
-* **DuckDNS token** (from your DuckDNS dashboard)
-* **WEBSITE_SECRET_KEY** (Chose yourself and keep it a secter or leave empty for autogenerating random key) 
+- **DuckDNS subdomain** — e.g. `myhomebox` (just the name, not the full domain)
+- **DuckDNS token** — from your DuckDNS dashboard
+- **WEBSITE_SECRET_KEY** — leave empty to auto-generate a secure 64-hex key (or paste your own)
+- **Gmail address** — the sender for password reset emails (**must be Gmail**)
+- **Gmail 16-char App Password** — Google “App Password” for that Gmail (**not** your normal password)
 
 3. **Visit your site**
 
@@ -88,6 +90,49 @@ webpage_ws/
    journalctl -u duckdns-update.service -n 50 --no-pager
    ```
 
+</details>
+
+<details>
+<summary><strong>Gmail App Password: how to create & use</strong></summary>
+
+**Prereqs**
+- Your Google account must have **2-Step Verification** enabled.
+
+**Create an App Password**
+1. Open: <https://myaccount.google.com/security>
+2. Under **“Signing in to Google”**, click **App passwords**.  
+   (If you don’t see it, enable 2-Step Verification first.)
+3. In **Select app**, choose **Mail** (or “Other” and type a name, e.g. `My_Website`).
+4. In **Select device**, pick your device (or “Other”).
+5. Click **Generate**.
+6. Copy the **16-character password** (looks like `xxxx xxxx xxxx xxxx`).  
+   **Use it without spaces** when pasting into the setup prompt.
+
+**Use it in this project**
+- When you run `./scripts/start.sh`, you’ll be prompted for:
+  - **Gmail address** (sender): e.g. `you@gmail.com`
+  - **Gmail 16-char App Password**: paste the code **without spaces**
+- The script saves these to `/etc/environment` as:
+  - `SMTP_HOST=smtp.gmail.com`
+  - `SMTP_PORT=587`
+  - `SMTP_USER=<your gmail>`
+  - `SMTP_PASS=<your app password>`
+  - `SMTP_FROM=<your gmail>`
+
+**Quick test (optional)**
+```bash
+# One-shot test without saving anything:
+SMTP_HOST="smtp.gmail.com" \
+SMTP_PORT="587" \
+SMTP_USER="your@gmail.com" \
+SMTP_PASS="xxxxxxxxxxxxxxxx" \
+SMTP_FROM="your@gmail.com" \
+python - <<'PY'
+from utils.mailer import send_email
+send_email("your@gmail.com", "SMTP test", "Hello via Gmail SMTP")
+print("Sent (if no exception). Check your inbox.")
+PY
+```
 </details>
 
 <details>
