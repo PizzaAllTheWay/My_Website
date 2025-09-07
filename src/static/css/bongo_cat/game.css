@@ -1,0 +1,72 @@
+/* Layout */
+#bongo-root {
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.score {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+/* The “button” that looks like an image */
+.tap-btn {
+  height: 50vh;                 /* target 50% viewport height */
+  aspect-ratio: 1 / 1;          /* ← set real ratio e.g. 4 / 3 or 16 / 9 */
+  width: auto;                  /* computed from height × aspect-ratio */
+  display: block;               /* avoid shrink-to-fit collapse */
+  max-width: 100vw;
+  max-height: 100vh;
+  background-image: url("../../img/bongo_cat/BongoDefault.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  border: 0;
+  padding: 0;
+  background-color: transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: transform 80ms ease;
+}
+
+
+/* Button-Image pressed variants */
+.tap-btn.pressed-both {
+  background-image: url("../../img/bongo_cat/BongoBoth.png");
+  transform: scale(0.96);
+}
+.tap-btn.pressed-left {
+  background-image: url("../../img/bongo_cat/BongoLeft.png");
+  transform: scale(0.96);
+}
+.tap-btn.pressed-right {
+  background-image: url("../../img/bongo_cat/BongoRight.png");
+  transform: scale(0.96);
+}
+
+.tap-btn:focus-visible {
+  outline: 2px solid #4a90e2;
+  outline-offset: 3px;
+}
+
+
+/* Link styled as a button */
+.nav {
+  margin-top: 8px;
+}
+
+.btn-link {
+  display: inline-block;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  text-decoration: none;
+  color: #222;
+}
+
+.btn-link:hover {
+  background: #f6f6f6;
+}

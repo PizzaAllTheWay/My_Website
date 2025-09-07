@@ -60,14 +60,17 @@ def create_app():
     # Register blueprints (routes)
     try:
         from routes.home import bp as home_bp
+        from routes.bongo_cat import bp as bongo_cat_bp
         from routes.about import bp as about_bp
         from routes.user import bp as user_bp
     except ModuleNotFoundError:
         from src.routes.home import bp as home_bp
+        from src.routes.bongo_cat import bp as bongo_cat_bp
         from src.routes.about import bp as about_bp
         from src.routes.user import bp as user_bp
 
     app.register_blueprint(home_bp)
+    app.register_blueprint(bongo_cat_bp)
     app.register_blueprint(about_bp)
     app.register_blueprint(user_bp)
 

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Bongo Cat UwU</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/bongo_cat/game.css') }}">
+</head>
+<body>
+  {% include 'partials/_navigation_bar.html' %}
+  <h1>Bongo Cat UwU</h1>
+
+  {% if score is not none %}
+    <div id="bongo-root"
+         data-sync-url="{{ url_for('bongo_cat.sync') }}"
+         data-leaderboard-url="{{ url_for('bongo_cat.leaderboard') }}"
+         data-initial-score="{{ score|int }}">
+
+      <p class="score">Current score: <b id="score">{{ score }}</b></p>
+
+      <!-- Styled via CSS to be the image; keeps existing JS (#tap-btn) working -->
+      <button id="tap-btn" class="tap-btn" aria-label="Bongo! +1"></button>
+
+      <p class="nav">
+        <a href="{{ url_for('bongo_cat.leaderboard') }}" id="to-leaderboard" class="btn-link">
+          View Leaderboard
+        </a>
+      </p>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/bongo_cat/game.js') }}" defer></script>
+  {% else %}
+    <p>Please <a href="{{ url_for('user.login') }}">log in</a> to play.</p>
+    <p class="nav">
+      <a href="{{ url_for('bongo_cat.leaderboard') }}" class="btn-link">View Leaderboard</a>
+    </p>
+  {% endif %}
+
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% if msgs %}
+      <ul>
+        {% for cat, m in msgs %}<li>[{{cat}}] {{ m }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+</body>
+</html>

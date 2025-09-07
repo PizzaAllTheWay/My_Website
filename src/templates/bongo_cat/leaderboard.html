@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Bongo Cat UwU</title>
+</head>
+<body>
+  {% include 'partials/_navigation_bar.html' %}
+  <h1>Top 10 Bongo Cat Players</h1>
+
+  {% if rows %}
+    <table border="1" cellpadding="6" cellspacing="0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Username</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ r.username }}</td>
+            <td>{{ r.score }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No players yet. Be the first!</p>
+  {% endif %}
+
+  <p style="margin-top:12px;">
+    <a href="{{ url_for('bongo_cat.index') }}">
+      <button type="button">Back to Game</button>
+    </a>
+  </p>
+</body>
+</html>
