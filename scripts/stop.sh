@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop & disable app (website/website), DuckDNS (timer+service), and Caddy.
+# Stop & disable app (website), DuckDNS (timer+service), and Caddy.
 set -Eeuo pipefail
 
 ok()   { printf "\033[1;32m[✓]\033[0m %s\n" "$*"; }

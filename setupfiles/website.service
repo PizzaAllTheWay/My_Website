@@ -1,4 +1,4 @@
-# setupfiles/webpage.service  (TEMPLATE)
+# setupfiles/website.service  (TEMPLATE)
 [Unit]
 Description=Flask demo (Gunicorn)
 After=network-online.target
@@ -9,7 +9,7 @@ User={{USER}}
 Group={{GROUP}}
 WorkingDirectory={{APP_ROOT}}
 Environment="PATH={{APP_ROOT}}/.venv/bin"
-ExecStart={{APP_ROOT}}/.venv/bin/gunicorn --workers 2 --chdir {{APP_ROOT}}/src --bind 127.0.0.1:8000 app:app
+ExecStart={{APP_ROOT}}/.venv/bin/python -m gunicorn --workers 2 --chdir {{APP_ROOT}}/src --bind 127.0.0.1:8000 app:app
 Restart=on-failure
 RestartSec=3
 
