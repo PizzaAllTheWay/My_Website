@@ -31,17 +31,38 @@ def create_app():
         instance_path=os.path.join(BASE_DIR, "instance"),
     )
 
-    # Session signing key (move to env in real apps)
-    app.config["SECRET_KEY"] = "change-me"
+    # Load secret key from environment
+    # Used to sign sessions, flash messages, and reset tokens.
+    secret = os.getenv("WEBSITE_SECRET_KEY")
+    if not secret:
+        raise RuntimeError("WEBSITE_SECRET_KEY is not set")
+    app.config["SECRET_KEY"] = secret
 
-    # Ensure the instance directory exists (Flask stores writable files here)
+    # Password reset config
+    app.config["RESET_TOKEN_MAX_AGE"] = 3600                 # 1 hour before reset expires
+    app.config["RESET_TOKEN_SALT"] = os.getenv(              # allow override via env
+        "RESET_TOKEN_SALT", 
+        "pw-reset-v1"                                        # default salt
+    )
+
+    # Ensure instance/ exists (Flask writes DB/files here)
     os.makedirs(app.instance_path, exist_ok=True)
 
-    # SQLite DB under instance/: instance/site.db
+    # Database location under instance/: instance/site.db
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(app.instance_path, "site.db")
 
     # Disable SQLAlchemy event system overhead
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    # Absolute URL building for emails / CLI (optional but recommended)
+    # Use your public FQDN (e.g., set by start.sh in /etc/environment).
+    # Falls back to request.url_root when not set.
+    dns_server = "duckdns.org"
+    webiste_name = os.getenv("DUCK_DOMAIN")
+    server_name = webiste_name + "." + dns_server  # eks: "martynassmilingis.duckdns.org"
+    if server_name:
+        app.config["SERVER_NAME"] = server_name
+        app.config["PREFERRED_URL_SCHEME"] = "https"
 
     # Attach SQLAlchemy to this app (db defined in extensions.py)
     db.init_app(app)

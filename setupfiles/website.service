@@ -8,8 +8,20 @@ Wants=network-online.target
 User={{USER}}
 Group={{GROUP}}
 WorkingDirectory={{APP_ROOT}}
-Environment="PATH={{APP_ROOT}}/.venv/bin"
-ExecStart={{APP_ROOT}}/.venv/bin/python -m gunicorn --workers 2 --chdir {{APP_ROOT}}/src --bind 127.0.0.1:8000 app:app
+
+# Load DUCK_DOMAIN and WEBSITE_SECRET_KEY (and anything else you stored there)
+EnvironmentFile=-/etc/environment
+
+# Keep venv first on PATH
+Environment="PATH={{APP_ROOT}}/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
+
+# Run Gunicorn from venv
+ExecStart={{APP_ROOT}}/.venv/bin/python -m gunicorn \
+  --workers 2 \
+  --chdir {{APP_ROOT}}/src \
+  --bind 127.0.0.1:8000 \
+  app:app
+
 Restart=on-failure
 RestartSec=3
 

@@ -78,6 +78,12 @@ sudo systemctl stop "$APP_UNIT" || true
 # --- Initialize / upgrade the database schema (Flask-Migrate/Alembic) ---
 ok "Initializing / upgrading database schema"
 
+# Make sure required env vars are in *this* process env
+export DUCK_DOMAIN="$(grep -E '^DUCK_DOMAIN=' /etc/environment | cut -d= -f2-)"
+export WEBSITE_SECRET_KEY="$(grep -E '^WEBSITE_SECRET_KEY=' /etc/environment | cut -d= -f2-)"
+[[ -n "$DUCK_DOMAIN" ]] || warn "DUCK_DOMAIN not found in /etc/environment"
+[[ -n "$WEBSITE_SECRET_KEY" ]] || die "WEBSITE_SECRET_KEY not found in /etc/environment"
+
 # Enforce single instance dir under src/ (move any stray DB then remove root/instance)
 SRC_INST="${ROOT}/src/instance"
 ROOT_INST="${ROOT}/instance"
@@ -113,6 +119,27 @@ fi
 "$PY" -m flask "${APPARG[@]}" db upgrade
 
 popd >/dev/null
+
+
+
+# --- SMTP env for this process (so any CLI/mail in this run sees them) ---
+# Pull from /etc/environment; keep quiet if missing
+for k in SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS SMTP_FROM; do
+  v="$(grep -E "^${k}=" /etc/environment | cut -d= -f2- || true)"
+  [[ -n "$v" ]] && export "${k}=${v}"
+done
+
+# Sensible Gmail defaults if not set (you configured these in start.sh)
+: "${SMTP_HOST:=smtp.gmail.com}"
+: "${SMTP_PORT:=587}"
+# If FROM unset but USER present, default FROM to USER
+if [[ -z "${SMTP_FROM:-}" && -n "${SMTP_USER:-}" ]]; then
+  export SMTP_FROM="${SMTP_USER}"
+fi
+
+# Quick visibility (no secrets printed)
+[[ -n "${SMTP_USER:-}" ]] || warn "SMTP_USER missing (emails will fall back to DEV print)."
+[[ -n "${SMTP_PASS:-}" ]] || warn "SMTP_PASS missing (emails will fall back to DEV print)."
 
 
 

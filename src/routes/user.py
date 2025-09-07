@@ -1,14 +1,20 @@
-# routes/user.py
-# User section: status page, register, login, logout.
-# Errors are rendered inline on the same page (no redirect on failure).
-
+# --- Flask / framework --------------------------------------------------------
 from flask import (
-    Blueprint, render_template, request, redirect, url_for, flash, session
-)
-from sqlalchemy.exc import IntegrityError  # handle unique-constraint collisions
+    Blueprint, current_app, render_template,
+    request, redirect, url_for, flash, session
+)  # core web primitives: routing, templates, form data, redirects, messages, session
 
-# Import the User model (ORM table)
-from models.user import User
+# --- Security / tokens --------------------------------------------------------
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+# time-limited signed tokens for password reset links
+
+# --- Database / ORM -----------------------------------------------------------
+from sqlalchemy.exc import IntegrityError  # catch unique/constraint errors
+from models.user import User               # your User ORM model (table)
+
+# --- Utilities ----------------------------------------------------------------
+from textwrap import dedent                # Strips multistring to structured readable format
+from utils.mailer import send_email        # thin email helper (SMTP or dev print)
 
 # IMPORTANT:
 # Use a neutral module for shared extensions to avoid circular imports.
@@ -188,3 +194,91 @@ def logout():
     session.clear()
     flash("Logged out.", "ok")
     return redirect(url_for("user.index"))
+
+
+
+def _serializer() -> URLSafeTimedSerializer:
+    # Derive a dedicated salt for reset tokens
+    salt = current_app.config.get("RESET_TOKEN_SALT") or "pw-reset"
+    return URLSafeTimedSerializer(current_app.config["SECRET_KEY"], salt=salt)
+
+
+
+@bp.route("/reset", methods=["GET", "POST"])
+def reset_request():
+    """
+    Ask user for email; if it exists, send a time-limited reset link.
+    Always show success message (don’t leak which emails exist).
+    """
+    if request.method == "POST":
+        email = (request.form.get("email") or "").strip().lower()
+        user = User.query.filter_by(email=email).first()
+        if user:
+            token = _serializer().dumps({"uid": user.id})
+            # absolute URL if SERVER_NAME set; else relative
+            reset_url = url_for("user.reset_token", token=token, _external=True)
+            # Include a nonce in session to invalidate old links after login
+            current_app.logger.info("Password reset for uid=%s url=%s", user.id, reset_url)
+            # Calculate minutes until expiration
+            minutes = current_app.config.get("RESET_TOKEN_MAX_AGE", 3600) // 60
+
+            send_email(
+                to=user.email,
+                subject="Password reset",
+                body=dedent(f"""\
+                    Hewo Mr/Ms {user.username} :3,
+                    
+                    Oh nooo, a wild missing password appeared! 🙀
+                    It's okay, happens to the best of us. I got your back 🐥
+
+                    Tap this magical link to reset your password:
+                    {reset_url}
+
+                    The spell on this link fades in {minutes} minutes ⏳✨
+                    If you didn't ask for this, just ignore me and carry on being awesome possum 🦝😎 
+
+                    big hugs,
+                    — {current_app.config.get('SERVER_NAME', 'Your Friendly Website')}
+                """),
+            )
+        flash("If that email exists, a reset link was sent.", "ok")
+        return redirect(url_for("user.login"))
+    return render_template("user/reset_request.html")
+
+
+
+@bp.route("/reset/<token>", methods=["GET", "POST"])
+def reset_token(token):
+    """
+    Verify token; let user set a new password.
+    Token lifetime = RESET_TOKEN_MAX_AGE (seconds).
+    """
+    max_age = int(current_app.config.get("RESET_TOKEN_MAX_AGE", 3600))
+    try:
+        data = _serializer().loads(token, max_age=max_age)
+        uid = int(data.get("uid", 0))
+    except SignatureExpired:
+        flash("Reset link expired. Please request a new one.", "warn")
+        return redirect(url_for("user.reset_request"))
+    except (BadSignature, Exception):
+        flash("Invalid reset link.", "warn")
+        return redirect(url_for("user.reset_request"))
+
+    user = User.query.get(uid)
+    if not user:
+        flash("Account not found.", "warn")
+        return redirect(url_for("user.reset_request"))
+
+    if request.method == "POST":
+        pw1 = request.form.get("password") or ""
+        pw2 = request.form.get("password2") or ""
+        if len(pw1) < 8:
+            return render_template("user/reset_form.html", error="Password must be at least 8 characters.")
+        if pw1 != pw2:
+            return render_template("user/reset_form.html", error="Passwords do not match.")
+        user.set_password(pw1)
+        db.session.commit()
+        flash("Password updated. You can log in now.", "ok")
+        return redirect(url_for("user.login"))
+
+    return render_template("user/reset_form.html")

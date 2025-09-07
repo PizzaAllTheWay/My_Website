@@ -25,8 +25,11 @@
 
     <p><a href="{{ url_for('user.logout') }}">Logout</a></p>
   {% else %}
-    <p><a href="{{ url_for('user.register') }}">Create account</a> |
-       <a href="{{ url_for('user.login') }}">Login</a></p>
+    <p>
+      <a href="{{ url_for('user.register') }}">Create account</a> |
+      <a href="{{ url_for('user.login') }}">Login</a> |
+      <a href="{{ url_for('user.reset_request') }}">Forgot password?</a>
+    </p>
   {% endif %}
 </body>
 </html>

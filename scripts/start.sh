@@ -82,6 +82,14 @@ sudo sed -i '/^MYWEBSITE_FQDN=/d'   /etc/environment || true
 echo "MYWEBSITE_DOMAIN=${DUCK_DOMAIN}"            | sudo tee -a /etc/environment >/dev/null
 echo "MYWEBSITE_FQDN=${DUCK_DOMAIN}.duckdns.org" | sudo tee -a /etc/environment >/dev/null
 
+# Persist to /etc/environment (no console echo of the value)
+ok "Persisting DUCK_DOMAIN to /etc/environment"
+sudo sed -i '/^DUCK_DOMAIN=/d' /etc/environment || true
+sudo sh -c "printf '%s\n' 'DUCK_DOMAIN=${DUCK_DOMAIN}' >> /etc/environment"
+
+# Make it available to *this* script (so flask db ... sees it)
+export DUCK_DOMAIN="${DUCK_DOMAIN}"
+
 # --- install DuckDNS updater script (inject domain/token) ---
 ok "Installing DuckDNS updater → /usr/local/bin/duckdns-update.sh"
 sudo install -m 0700 -o root -g root "${SCRIPTS}/duckdns-update.sh" /usr/local/bin/duckdns-update.sh
@@ -98,6 +106,82 @@ else
   echo "DUCK_TOKEN=\"${DUCK_TOKEN}\"" | sudo tee -a "$UPD" >/dev/null
 fi
 sudo chmod 700 "$UPD"
+
+
+
+# --- WEBSITE_SECRET_KEY (Flask signing key) ---
+# Silent prompt; if empty or invalid, auto-generate a 64-hex secret.
+read -srp "Provide WEBSITE_SECRET_KEY (leave empty to auto-generate): " WEBSITE_SECRET_KEY
+echo  # newline after silent read
+
+# Validate: must be exactly 64 hex chars
+if ! [[ "$WEBSITE_SECRET_KEY" =~ ^[0-9a-fA-F]{64}$ ]]; then
+  WEBSITE_SECRET_KEY="$("$PY" - <<'PY'
+import secrets; print(secrets.token_hex(32))
+PY
+)"
+  ok "Generated random 64-hex WEBSITE_SECRET_KEY"
+fi
+
+# Persist to /etc/environment (no console echo of the value)
+ok "Persisting WEBSITE_SECRET_KEY to /etc/environment"
+sudo sed -i '/^WEBSITE_SECRET_KEY=/d' /etc/environment || true
+sudo sh -c "printf '%s\n' 'WEBSITE_SECRET_KEY=${WEBSITE_SECRET_KEY}' >> /etc/environment"
+
+# Export for this script run so flask CLI can import the app
+export WEBSITE_SECRET_KEY="${WEBSITE_SECRET_KEY}"
+
+
+
+# --- SMTP (Gmail only; REQUIRED every run) -----------------------------------
+# We hard-code Gmail SMTP and only prompt for the account + app password.
+# Values are written to /etc/environment and to systemd's manager env so
+# the unit file using %E{VAR} can see them immediately.
+
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT="587"
+
+# Gmail address (required)
+while :; do
+  read -rp "Gmail address (e.g. you@gmail.com): " SMTP_USER
+  [[ -n "$SMTP_USER" ]] && break
+  warn "Gmail address cannot be empty."
+done
+
+# 16-char Gmail App Password (required). Paste WITHOUT spaces.
+while :; do
+  read -srp "Gmail 16-char App Password (no spaces): " SMTP_PASS; echo
+  # strip spaces just in case user pasted with spaces
+  SMTP_PASS="${SMTP_PASS//[[:space:]]/}"
+  [[ ${#SMTP_PASS} -eq 16 ]] && break
+  warn "App password must be exactly 16 characters (from Google App Passwords)."
+done
+
+SMTP_FROM="$SMTP_USER"
+
+# Persist to /etc/environment (no value echo to console)
+ok "Persisting SMTP_* to /etc/environment"
+sudo sed -i '/^SMTP_HOST=/d;/^SMTP_PORT=/d;/^SMTP_USER=/d;/^SMTP_PASS=/d;/^SMTP_FROM=/d' /etc/environment || true
+sudo sh -c "printf '%s\n' \
+SMTP_HOST=${SMTP_HOST} \
+SMTP_PORT=${SMTP_PORT} \
+SMTP_USER=${SMTP_USER} \
+SMTP_PASS=${SMTP_PASS} \
+SMTP_FROM=${SMTP_FROM} >> /etc/environment"
+
+# Export for this script run (flask CLI etc.)
+export SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASS SMTP_FROM
+
+# Also set in systemd manager environment so unit lines like
+#   Environment=\"SMTP_USER=%E{SMTP_USER}\"
+# resolve immediately on restart.
+sudo systemctl set-environment \
+  "SMTP_HOST=${SMTP_HOST}" \
+  "SMTP_PORT=${SMTP_PORT}" \
+  "SMTP_USER=${SMTP_USER}" \
+  "SMTP_PASS=${SMTP_PASS}" \
+  "SMTP_FROM=${SMTP_FROM}"
+# ---------------------------------------------------------------------------
 
 
 

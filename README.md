@@ -26,6 +26,7 @@ You’ll be prompted for:
 
 * **DuckDNS subdomain** (e.g. `myhomebox`, not the full domain)
 * **DuckDNS token** (from your DuckDNS dashboard)
+* **WEBSITE_SECRET_KEY** (Chose yourself and keep it a secter or leave empty for autogenerating random key) 
 
 3. **Visit your site**
 
