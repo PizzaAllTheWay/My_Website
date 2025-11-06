@@ -1,5 +1,3 @@
-Here’s a cleaned-up, newbie-friendly README with collapsible sections and a clickable live link. I replaced “TL;DR” with “Quick start” and kept the rest concise but expandable.
-
 ---
 
 # MyWebsite
